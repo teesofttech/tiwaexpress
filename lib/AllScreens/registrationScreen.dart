@@ -1,15 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:riderapp/AllScreens/registrationScreen.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:riderapp/AllScreens/loginScreen.dart';
+import 'package:riderapp/AllScreens/mainscreen.dart';
+import 'package:riderapp/main.dart';
 
-import '../main.dart';
-import 'mainscreen.dart';
+class RegistrationScreen extends StatelessWidget {
+  static const String idScreen = "register";
 
-class LoginScreen extends StatelessWidget {
-  static const String idScreen = "login";
-
+  TextEditingController nameTextEditingController = TextEditingController();
   TextEditingController emailTextEditingController = TextEditingController();
+  TextEditingController phoneTextEditingController = TextEditingController();
   TextEditingController passwordTextEditingController = TextEditingController();
 
   @override
@@ -22,7 +23,7 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(
-                height: 35.0,
+                height: 25.0,
               ),
               Image(
                 image: AssetImage("images/logo.png"),
@@ -34,7 +35,7 @@ class LoginScreen extends StatelessWidget {
                 height: 1.0,
               ),
               Text(
-                "Login as Rider",
+                "Register as Rider",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 24.0, fontFamily: "Brand-SemiBold"),
               ),
@@ -46,10 +47,40 @@ class LoginScreen extends StatelessWidget {
                       height: 1.0,
                     ),
                     TextField(
+                      controller: nameTextEditingController,
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                          labelText: "Name",
+                          labelStyle: TextStyle(
+                            fontSize: 14.0,
+                          ),
+                          hintStyle:
+                              TextStyle(color: Colors.grey, fontSize: 10.0)),
+                      style: TextStyle(fontSize: 14.0),
+                    ),
+                    SizedBox(
+                      height: 1.0,
+                    ),
+                    TextField(
                       controller: emailTextEditingController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                           labelText: "Email",
+                          labelStyle: TextStyle(
+                            fontSize: 14.0,
+                          ),
+                          hintStyle:
+                              TextStyle(color: Colors.grey, fontSize: 10.0)),
+                      style: TextStyle(fontSize: 14.0),
+                    ),
+                    SizedBox(
+                      height: 1.0,
+                    ),
+                    TextField(
+                      controller: phoneTextEditingController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                          labelText: "Phone",
                           labelStyle: TextStyle(
                             fontSize: 14.0,
                           ),
@@ -82,7 +113,7 @@ class LoginScreen extends StatelessWidget {
                         height: 50.0,
                         child: Center(
                           child: Text(
-                            "Login",
+                            "Create an account",
                             style: TextStyle(
                                 fontSize: 18.0, fontFamily: "Brand-Bold"),
                           ),
@@ -92,14 +123,22 @@ class LoginScreen extends StatelessWidget {
                         borderRadius: new BorderRadius.circular(24.0),
                       ),
                       onPressed: () {
-                        if (!emailTextEditingController.text.contains("@")) {
+                        if (nameTextEditingController.text.length < 3) {
+                          displayToastMessage(
+                              "Name must be aleast 3 characters", context);
+                        } else if (!emailTextEditingController.text
+                            .contains("@")) {
                           displayToastMessage(
                               "Email address is not valid", context);
+                        } else if (phoneTextEditingController.text.isEmpty) {
+                          displayToastMessage(
+                              "Phone Number is mandatory", context);
                         } else if (passwordTextEditingController.text.length <
                             6) {
-                          displayToastMessage("Password is mandatory", context);
+                          displayToastMessage(
+                              "Password must be atleast 6 characters", context);
                         } else {
-                          loginAndAuthenticateUser(context);
+                          registerNewUser(context);
                         }
                       },
                     )
@@ -109,9 +148,9 @@ class LoginScreen extends StatelessWidget {
               FlatButton(
                   onPressed: () {
                     Navigator.pushNamedAndRemoveUntil(
-                        context, RegistrationScreen.idScreen, (route) => false);
+                        context, LoginScreen.idScreen, (route) => false);
                   },
-                  child: Text("Do not have an account register here?"))
+                  child: Text("Already have an account? Login Here"))
             ],
           ),
         ),
@@ -121,9 +160,9 @@ class LoginScreen extends StatelessWidget {
 
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  void loginAndAuthenticateUser(BuildContext context) async {
+  void registerNewUser(BuildContext context) async {
     final User firebaseUser = (await _firebaseAuth
-            .signInWithEmailAndPassword(
+            .createUserWithEmailAndPassword(
                 email: emailTextEditingController.text,
                 password: passwordTextEditingController.text)
             .catchError((errMsg) {
@@ -133,23 +172,26 @@ class LoginScreen extends StatelessWidget {
 
     if (firebaseUser != null) {
       //save user info to db
-      usersRef
-          .child(firebaseUser.uid)
-          .once()
-          .then((DataSnapshot snap) {
-                if (snap.value != null) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, MainScreen.idScreen, (route) => false);
-                  displayToastMessage("You are loggedIn now", context);
-                } else {}
-                _firebaseAuth.signOut();
-                displayToastMessage(
-                    "No record exist for this user. Please create new account",
-                    context);
-              });
+
+      Map userDataMap = {
+        "name": nameTextEditingController.text.trim(),
+        "email": emailTextEditingController.text.trim(),
+        "phone": phoneTextEditingController.text.trim(),
+      };
+
+      usersRef.child(firebaseUser.uid).set(userDataMap);
+      displayToastMessage(
+          "Congratulations, your account has been created", context);
+
+      Navigator.pushNamedAndRemoveUntil(
+          context, MainScreen.idScreen, (route) => false);
     } else {
       //error occcurred display error message
       displayToastMessage("New User has not been created", context);
     }
   }
+}
+
+displayToastMessage(String message, BuildContext context) {
+  Fluttertoast.showToast(msg: message);
 }
