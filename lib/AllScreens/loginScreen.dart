@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:riderapp/AllScreens/registrationScreen.dart';
+import 'package:riderapp/AllWidgets/progressDialog.dart';
 
 import '../main.dart';
 import 'mainscreen.dart';
@@ -122,33 +123,43 @@ class LoginScreen extends StatelessWidget {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   void loginAndAuthenticateUser(BuildContext context) async {
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return ProgressDialog(
+            message: "Authenticating, please wait",
+          );
+        });
+
     final User firebaseUser = (await _firebaseAuth
             .signInWithEmailAndPassword(
                 email: emailTextEditingController.text,
                 password: passwordTextEditingController.text)
             .catchError((errMsg) {
+      Navigator.pop(context);
       displayToastMessage("Error: " + errMsg.toString(), context);
     }))
         .user;
 
     if (firebaseUser != null) {
       //save user info to db
-      usersRef
-          .child(firebaseUser.uid)
-          .once()
-          .then((DataSnapshot snap) {
-                if (snap.value != null) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, MainScreen.idScreen, (route) => false);
-                  displayToastMessage("You are loggedIn now", context);
-                } else {}
-                _firebaseAuth.signOut();
-                displayToastMessage(
-                    "No record exist for this user. Please create new account",
-                    context);
-              });
+      usersRef.child(firebaseUser.uid).once().then((DataSnapshot snap) {
+        if (snap.value != null) {
+          Navigator.pushNamedAndRemoveUntil(
+              context, MainScreen.idScreen, (route) => false);
+          displayToastMessage("You are loggedIn now", context);
+        } else {
+          Navigator.pop(context);
+          _firebaseAuth.signOut();
+          displayToastMessage(
+              "No record exist for this user. Please create new account",
+              context);
+        }
+      });
     } else {
       //error occcurred display error message
+      Navigator.pop(context);
       displayToastMessage("New User has not been created", context);
     }
   }
